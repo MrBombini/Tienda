@@ -93,9 +93,9 @@ app.get('/api/country/:code', async (req, res) => {
     const url = 'http://webservices.oorsprong.org/websamples.countryinfo/CountryInfoService.wso?WSDL';
     const client = await soap.createClientAsync(url);
 
-    console.log('Solicitando información para el país:', code);
+    console.log('Métodos disponibles en el cliente SOAP:', client.describe());
 
-    client.CountryInfo({ sCountryISOCode: code }, (err, result) => {
+    client.FullCountryInfo({ sCountryISOCode: code }, (err, result) => {
       if (err) {
         console.error('Error llamando al servicio SOAP:', err);
         return res.status(500).json({ message: 'Error llamando al servicio SOAP', error: err.message });
@@ -103,15 +103,30 @@ app.get('/api/country/:code', async (req, res) => {
 
       console.log('Respuesta SOAP completa:', JSON.stringify(result, null, 2));
 
-      if (!result?.CountryInfoResult) {
+      if (!result?.FullCountryInfoResult) {
         console.error('Estructura inesperada en la respuesta SOAP:', result);
         return res.status(500).json({ message: 'No se encontró información para el país.' });
       }
 
-      res.json(result.CountryInfoResult);
+      const countryInfo = result.FullCountryInfoResult;
+
+      // Transformar las propiedades para que coincidan con las esperadas por el frontend
+      res.json({
+        sISOCode: countryInfo.sISOCode,
+        sName: countryInfo.sName,
+        sCapitalCity: countryInfo.sCapitalCity,
+        sPhoneCode: countryInfo.sPhoneCode,
+        sContinentCode: countryInfo.sContinentCode,
+        sCurrencyISOCode: countryInfo.sCurrencyISOCode,
+        sCountryFlag: countryInfo.sCountryFlag,
+        Languages: countryInfo.Languages?.tLanguage?.map((lang) => ({
+          sISOCode: lang.sISOCode,
+          sName: lang.sName,
+        })) || [],
+      });
     });
   } catch (error) {
-    console.error('Error fetching country details:', error.message);
+    console.error('Error creando el cliente SOAP:', error.message);
     res.status(500).json({ message: 'Failed to fetch country details', error: error.message });
   }
 });
